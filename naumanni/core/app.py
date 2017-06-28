@@ -47,10 +47,10 @@ class NaumanniApp(object):
             logger.info('Load plugin: %s', plugin.id)
         return plugins
 
-    async def setup(self, task_id):
+    async def setup(self, child_id):
         """runloop前の最後のセットアップ"""
-        self.task_id = task_id
-        if not task_id:
+        self.child_id = child_id
+        if not child_id:
             # forkしてたら0, してなければNoneがくる  1st-processなのでtimer系をここにinstall
             self.emit('after-start-first-process')
 

@@ -14,7 +14,6 @@ from click.core import Context
 
 import naumanni
 from naumanni.core import NaumanniApp
-import naumanni.web.server
 
 
 # project module
@@ -76,8 +75,10 @@ def cli_main_run_webserver(ctx):
 
     # start server
     if app.debug:
-        webserver = naumanni.web.server.DebugWebServer
+        from naumanni.web.server import DebugWebServer
+        webserver = DebugWebServer
     else:
-        webserver = naumanni.web.server.ForkedWebServer
+        from naumanni.web.fork_server import ForkWebServer
+        webserver = ForkWebServer
 
     webserver(app, app.config.listen).start()
