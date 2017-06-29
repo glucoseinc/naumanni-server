@@ -9,6 +9,7 @@ import os
 import signal
 import socket
 import time
+import weakref
 
 import psutil
 from tornado import gen, ioloop, iostream, routing, web
@@ -55,10 +56,14 @@ class NaumanniWebApplication(web.Application):
 
 class WebServerBase(object):
     def __init__(self, naumanni_app, listen):
-        self.naumanni_app = naumanni_app
+        self.naumanni_app = weakref.ref(naumanni_app)
         self.listen = listen
 
         self.init()
+
+    @property
+    def app(self):
+        return self.naumanni_app()
 
     def init(self):
         handlers = [
@@ -70,19 +75,19 @@ class WebServerBase(object):
         self.application = NaumanniWebApplication(
             handlers,
             compress_response=True,
-            debug=self.naumanni_app.debug,
+            debug=self.app.debug,
             autoreload=False,
             websocket_ping_interval=3,
-            naumanni_app=self.naumanni_app,
+            naumanni_app=self.app,
         )
-        self.naumanni_app.emit('after-initialize-webserver', webserver=self)
+        self.app.emit('after-initialize-webserver', webserver=self)
 
     def _run_server(self, child_id):
         assert AsyncIOMainLoop().initialized()
 
         # run self.naumanni_app.setup(child_id) synchronusly
         io_loop = ioloop.IOLoop.current()
-        io_loop.run_sync(functools.partial(self.naumanni_app.setup, child_id))
+        io_loop.run_sync(functools.partial(self.app.setup, child_id))
 
         self.http_server = HTTPServer(self.application)
         self.http_server.add_sockets(self.sockets)
@@ -90,22 +95,37 @@ class WebServerBase(object):
         # run ioloop
         ioloop.IOLoop.current().start()
 
-    async def save_server_status(self, status):
-        """statusをredisに保存する"""
-        async with self.naumanni_app.get_async_redis() as redis:
-            status['date'] = time.time()
-            await redis.set(REDIS_SERVER_STATUS_KEY, json.dumps(status))
-
     async def collect_server_status(self):
         raise NotImplementedError()
 
 
 class DebugWebServer(WebServerBase):
     def start(self):
-        self.sockets = tornado.netutil.bind_sockets(*self.naumanni_app.config.listen)
+        self.sockets = tornado.netutil.bind_sockets(*self.app.config.listen)
         # debugなのでautoreloadする
         AsyncIOMainLoop().install()
         from tornado import autoreload
         autoreload.start()
 
         self._run_server(None)
+
+    async def collect_server_status(self):
+        return collect_process_status()
+
+
+# utils
+def collect_process_status():
+    io_loop = ioloop.IOLoop.instance()
+    selector = io_loop.asyncio_loop._selector
+
+    proc = psutil.Process()
+    with proc.oneshot():
+        mem = proc.memory_full_info()
+
+        status = {
+            'io_loop.handlers': len(io_loop.handlers),
+            'io_loop.selector.fds': len(selector._fd_to_key),
+            'process.uss': mem.uss / 1024.0 / 1024.0,
+            'process.rss': mem.rss / 1024.0 / 1024.0,
+        }
+    return status

@@ -63,17 +63,16 @@ def cli_main_run_webserver(ctx):
     """
     app = ctx.obj
 
-    logger.info('Master process PID:%s', os.getpid())
-
     import tornado.httpclient
     tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
 
     # start server
     if app.debug:
         from naumanni.web.server import DebugWebServer
-        webserver = DebugWebServer
+        webserver_class = DebugWebServer
     else:
         from naumanni.web.fork_server import ForkWebServer
-        webserver = ForkWebServer
+        webserver_class = ForkWebServer
 
-    webserver(app, app.config.listen).start()
+    app.webserver = webserver_class(app, app.config.listen)
+    app.webserver.start()
