@@ -98,18 +98,7 @@ class WebServerBase(object):
         self.http_server = HTTPServer(self.application)
         self.http_server.add_sockets(self.sockets)
 
-        try:
-            io_loop.start()
-        finally:
-            logger.debug('runloop exited')
-
-            # finalize asyncio
-            import asyncio
-
-            asyncio_loop = asyncio.get_event_loop()
-            assert not asyncio_loop.is_running()
-            asyncio_loop.run_until_complete(asyncio_loop.shutdown_asyncgens())
-            asyncio_loop.close()
+        io_loop.start()
 
     def stop(self):
         """webserverを止める"""

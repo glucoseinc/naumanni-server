@@ -63,8 +63,10 @@ def cli_main_run_webserver(ctx):
     """
     app = ctx.obj
 
-    import tornado.httpclient
-    tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+    # init tornado
+    from tornado import httpclient, ioloop
+    httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+    ioloop.IOLoop.configure('tornado.platform.asyncio.AsyncIOLoop')
 
     # start server
     if app.debug:
@@ -79,4 +81,3 @@ def cli_main_run_webserver(ctx):
     app.webserver.run()
 
     logger.debug('exit')
-

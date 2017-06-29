@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import collections
 import functools
 import json
@@ -11,7 +12,7 @@ import time
 import weakref
 
 from tornado import gen, ioloop, locks, netutil, web
-from tornado.platform.asyncio import AsyncIOLoop, AsyncIOMainLoop
+from tornado.platform.asyncio import AsyncIOLoop, AsyncIOMainLoop, BaseAsyncIOLoop
 import tornado.process
 
 from .management_socket import ManamgenetSocket
@@ -55,39 +56,15 @@ class ForkWebServer(object):
             child.management_socket.install()
 
     def run(self):
-        while not self.app.is_closed():
-            # child processを充填する
-            for child_id, child in list(self.children.items()):
-                # respawn
-                if not child.proc.is_alive():
-                    del self.children[child_id]
-
-                    if ioloop.IOLoop.initialized():
-                        ioloop.IOLoop.clear_current()
-                        ioloop.IOLoop.clear_instance()
-
-                    old_asyncio_loop = asyncio.events._get_running_loop()
-                    if old_asyncio_loop:
-                        logger.debug('async loop is_running:{!r} is_closed:{!r}'.format(old_asyncio_loop.is_running(), old_asyncio_loop.is_closed()))
-                        old_asyncio_loop.stop()
-                        old_asyncio_loop.run_until_complete(old_asyncio_loop.shutdown_asyncgens())
-                        old_asyncio_loop.close()
-                    else:
-                        logger.debug('no running asyncloop')
-
-                    self.spawn_child(child_id)
-
-            logger.debug('run master')
-            io_loop = ioloop.IOLoop.current()
+        logger.debug('run master')
+        io_loop = ioloop.IOLoop.current()
+        try:
             io_loop.start()
+        finally:
             logger.debug('master ioloop exited')
-
-            import asyncio
-
-            asyncio_loop = asyncio.get_event_loop()
-            assert not asyncio_loop.is_running()
-            asyncio_loop.run_until_complete(asyncio_loop.shutdown_asyncgens())
-            # asyncio_loop.close()
+            asyncio_loop = asyncio._get_running_loop()
+            if asyncio_loop:
+                asyncio_loop.run_until_complete(asyncio_loop.shutdown_asyncgens())
 
     def stop(self):
         # 子サーバーを全部止める
@@ -146,17 +123,22 @@ class ForkWebServer(object):
         if child_id not in self.children:
             raise ValueError('invalid child id {!r}'.format(child_id))
 
-        # # spawn new instance
-        # new_child = self.spawn_child(max(self.children.keys()) + 1)
-        # new_child.management_socket.install()
+        old_child = self.children.pop(child_id)
+        old_child.management_socket.uninstall()
 
         # kill child
-        child = self.children[child_id]
         try:
-            logger.debug('kill child process child_id:%d pid:%d', child_id, child.proc.pid)
-            os.kill(child.proc.pid, signal.SIGTERM)
+            os.kill(old_child.proc.pid, signal.SIGTERM)
         except ProcessLookupError:
             pass
+
+        # spawn new instance
+        new_child = self.spawn_child(child_id)
+        new_child.management_socket.install()
+
+        logger.debug(
+            'respawn child process child_id:%d old_pid:%d new_pid:%d',
+            child_id, old_child.proc.pid, new_child.proc.pid)
 
     async def handle_management_request(self, request, options):
         if request == MANAGEMENT_REQUEST_GET_STATUS:
@@ -164,21 +146,42 @@ class ForkWebServer(object):
             # 全子プロセスから集める
             return await self.collect_server_status()
         elif request == MANAGEMENT_REQUEST_SUSPEND_CHILD_SERVER:
-            return await self.suspend_child_server(options['child_id'])
+            # 非同期でsuspendする
+            ioloop.IOLoop.current().add_callback(
+                self.suspend_child_server, options['child_id']
+            )
+            return {}
         else:
             logger.error('Bad request %s:%r', requset, options)
 
 
 def _run_child(master, child_id, management_socket):
     logger.info('forked child web server started')
-    assert not ioloop.IOLoop.initialized()
-
     master.is_master = False
+
+    # refresh ioloop environment
+    # サーバ起動中に再起動した子プロセスは、親のioloopを引き継いでforkされてくるので、ここですべて殺す
+    assert asyncio._get_running_loop() is None
+    if ioloop.IOLoop.initialized():
+        logger.debug('ioloop is existing (may be I am respawned new child). clear existing ioloops.')
+
+        ioloop.IOLoop.clear_current()
+        ioloop.IOLoop.clear_instance()
 
     server = ChildForkServer(child_id, master.sockets, management_socket, master.app, master.listen)
     # override naumanni_app.webserver
     master.app.webserver = server
     server.start()
+
+    # check asyncio env
+    assert ioloop.IOLoop.initialized()
+    assert isinstance(ioloop.IOLoop.current(), BaseAsyncIOLoop)
+    assert asyncio._get_running_loop() is None
+
+    def checker():
+        assert asyncio._get_running_loop() == ioloop.IOLoop.current().asyncio_loop
+
+    ioloop.IOLoop.current().add_callback(checker)
     server.run()
 
 
@@ -245,14 +248,6 @@ def install_master_signal_handlers(webserver):
     signal.signal(signal.SIGQUIT, handler)
     signal.signal(signal.SIGTERM, handler)
 
-    def sigchld_handler(webserver, sig, frame):
-        logger.debug('sigchld received')
-        debug_list_ioloop_tasks(ioloop.IOLoop.current())
-        # ioloop.IOLoop.current().stop()
-        io_loop.add_callback_from_signal(ioloop.IOLoop.current().stop)
-
-    signal.signal(signal.SIGCHLD, functools.partial(sigchld_handler, webserver))
-
 
 def install_child_signal_handlers(webserver):
     """子プロセスがgracefulに死ぬように"""
@@ -260,7 +255,6 @@ def install_child_signal_handlers(webserver):
         io_loop = ioloop.IOLoop.instance()
 
         def stop_loop(deadline):
-            debug_list_ioloop_tasks(io_loop)
             now = time.time()
             if now < deadline and has_ioloop_tasks(io_loop):
                 logger.info('Waiting for next tick...')
