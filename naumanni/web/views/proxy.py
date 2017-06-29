@@ -10,8 +10,8 @@ from tornado.simple_httpclient import SimpleAsyncHTTPClient
 import tornado.web
 from werkzeug.exceptions import NotFound
 
-from .base import NaumanniRequestHandlerMixIn
-from ..mastodon_api import denormalize_mastodon_response, normalize_mastodon_response
+from ..base import NaumanniRequestHandlerMixIn
+from naumanni.mastodon_api import denormalize_mastodon_response, normalize_mastodon_response
 
 
 logger = logging.getLogger(__name__)

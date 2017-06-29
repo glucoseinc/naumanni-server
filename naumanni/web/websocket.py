@@ -117,7 +117,7 @@ class WebsocketProxyHandler(WebSocketHandler, NaumanniRequestHandlerMixIn, ListH
             payload = json.loads(message['payload'])
             entities, result = normalize_mastodon_response(api, payload)
             # TODO: _filter_entitiesをどっかに纏める
-            from .proxy import _filter_entities
+            from .views.proxy import _filter_entities
             await _filter_entities(self.naumanni_app, entities)
             payload = denormalize_mastodon_response(api, result, entities)
             message['payload'] = json.dumps(payload)

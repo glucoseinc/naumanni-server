@@ -10,7 +10,7 @@ import tornado.netutil
 from tornado.platform.asyncio import AsyncIOMainLoop
 import tornado.process
 
-from .proxy import APIProxyHandler
+from .views.proxy import APIProxyHandler
 from .views.status import DebugSuspendHandler, PingAPIHandler, StatusAPIHandler
 from .websocket import WebsocketProxyHandler
 
