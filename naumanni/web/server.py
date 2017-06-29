@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import collections
-import logging
 import functools
 import json
+import logging
 import multiprocessing
 import os
 import signal
@@ -14,15 +14,15 @@ import weakref
 import psutil
 from tornado import gen, ioloop, iostream, routing, web
 from tornado.httpserver import HTTPServer
-from tornado.wsgi import WSGIContainer
 import tornado.netutil
-import tornado.process
 from tornado.platform.asyncio import AsyncIOMainLoop
+import tornado.process
+from tornado.wsgi import WSGIContainer
 
 from .base import NaumanniRequestHandlerMixIn
 from .proxy import APIProxyHandler
+from .views.status import PingAPIHandler, StatusAPIHandler
 from .websocket import WebsocketProxyHandler
-from .views.status import StatusAPIHandler, PingAPIHandler
 
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,13 @@ class WebServerBase(object):
             naumanni_app=self.app,
         )
         self.app.emit('after-initialize-webserver', webserver=self)
+
+    def start(self):
+        pass
+
+    def stop(self):
+        """webserverを止める"""
+        self.http_server.stop()
 
     def _run_server(self, child_id):
         assert AsyncIOMainLoop().initialized()

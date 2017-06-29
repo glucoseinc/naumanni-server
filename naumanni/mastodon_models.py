@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 import re
 
-from werkzeug import cached_property, unescape
 from ttp import ttp
+from werkzeug import cached_property, unescape
 
 tag_rex = re.compile('<(/?.*?)(\s+[^>]*)?/?>')
 

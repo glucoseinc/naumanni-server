@@ -20,6 +20,3 @@ def test_rex():
 
     mo = mastodon_api_rex.match('https://friends.nico/api/v1/accounts/verify_credentials?hogehoge')
     assert mo.groups() == ('friends.nico', '/accounts/verify_credentials')
-
-def test_nothing():
-    pass

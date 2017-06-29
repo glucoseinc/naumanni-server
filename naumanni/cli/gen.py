@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import logging
+import sys
 
 import click
-
-import sys
 
 
 @click.group('gen')

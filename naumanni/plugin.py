@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
+
 import json
 import os
-import pkg_resources
 from weakref import ref as weakref
+
+import pkg_resources
 
 
 class Plugin(object):

@@ -4,9 +4,9 @@ import asyncio
 import inspect
 import logging
 import os
-import pkg_resources
 
 import aioredis
+import pkg_resources
 from tornado import concurrent, gen, httpclient
 
 import naumanni
@@ -37,6 +37,7 @@ class NaumanniApp(object):
         self.config = config
         self.root_path = os.path.abspath(os.path.join(naumanni.__file__, os.path.pardir, os.path.pardir))
         self.plugins = self.load_plugins()
+        self.webserver = None  # webserver初期化時に代入される
 
     def load_plugins(self):
         assert not hasattr(self, 'plugins')
@@ -58,6 +59,13 @@ class NaumanniApp(object):
         self._async_redis_pool = await aioredis.create_pool(
             (host, port), db=db, loop=asyncio.get_event_loop()
         )
+
+    def stop(self):
+        """appを終了させる"""
+        self.emit('before-stop-server')
+
+        # http_serverを止める
+        self.webserver.stop()
 
     def emit(self, event, **kwargs):
         rv = {}

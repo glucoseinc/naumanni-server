@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-import logging
 import json
+import logging
 import re
 import time
 from urllib.parse import urlparse
 
 from tornado import gen, httpclient
 from tornado.websocket import (
-    WebSocketHandler, websocket_connect, WebSocketClientConnection, WebSocketError, WebSocketClosedError
+    websocket_connect, WebSocketClientConnection, WebSocketClosedError, WebSocketError, WebSocketHandler
 )
 
 from .base import NaumanniRequestHandlerMixIn
-from ..mastodon_api import normalize_mastodon_response, denormalize_mastodon_response
+from ..mastodon_api import denormalize_mastodon_response, normalize_mastodon_response
 
 
 logger = logging.getLogger(__name__)

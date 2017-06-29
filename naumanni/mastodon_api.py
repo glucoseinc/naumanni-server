@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 from werkzeug import routing
 
-from naumanni.normalizr import Entity, denormalize, normalize
-from naumanni.mastodon_models import Status, Account, Notification
+from naumanni.mastodon_models import Account, Notification, Status
+from naumanni.normalizr import denormalize, Entity, normalize
 
 
 account = Entity('accounts', Account)

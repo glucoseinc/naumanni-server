@@ -1,2 +1,3 @@
 naumanni_server.egg-info/
 .cache/
+.tox/

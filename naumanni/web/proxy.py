@@ -1,17 +1,17 @@
 # -*- coding: utf-8 -*-
-import logging
 import json
+import logging
 import re
 from urllib.parse import quote, urlsplit, urlunsplit
 
 from tornado import gen, httpclient, queues, web
-import tornado.web
 from tornado.curl_httpclient import CurlAsyncHTTPClient
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
+import tornado.web
 from werkzeug.exceptions import NotFound
 
 from .base import NaumanniRequestHandlerMixIn
-from ..mastodon_api import normalize_mastodon_response, denormalize_mastodon_response
+from ..mastodon_api import denormalize_mastodon_response, normalize_mastodon_response
 
 
 logger = logging.getLogger(__name__)
@@ -125,6 +125,7 @@ class APIProxyHandler(tornado.web.RequestHandler, NaumanniRequestHandlerMixIn):
             # CurlAsyncHTTPClientがbody_producerを使えないため
             fetcher = SimpleAsyncHTTPClient
             pass_headers += ['Content-Length']
+
             async def _produce_body(write):
                 async for buf in self.data_queue:
                     if buf is FINISH_MARKER:
