@@ -51,6 +51,13 @@ class ForkWebServer(object):
         # use asyncio for ioloop
         AsyncIOMainLoop().install()
 
+        # 30分毎に子プロセスの状況を監視して、メモリ食いを殺す
+        self.report_task = ioloop.PeriodicCallback(
+            self.sweep_fat_child,
+            30 * 60 * 1000,
+        )
+        self.report_task.start()
+
         for child in self.children.values():
             child.management_socket.install()
 
@@ -153,6 +160,20 @@ class ForkWebServer(object):
         else:
             logger.error('Bad request %s:%r', request, options)
 
+    async def sweep_fat_child(self):
+        """デブな子供を殺す"""
+        max_uss = getattr(self.app.config, 'harakiri_uss_size', 512)
+        logger.debug('sweep_fat_child')
+
+        server_status = await self.collect_server_status()
+        for child_id, info in server_status['process'].items():
+            logger.debug('harakiri check %d -> %f', child_id, info['process.uss'])
+
+            if info['process.uss'] > max_uss:
+                child = self.children[child_id]
+                logger.info('harakiri child proc(%d, pid=%d). USS=%f', child_id, child.proc.pid, info['process.uss'])
+                break
+
 
 def _run_child(master, child_id, management_socket):
     logger.info('forked child web server started')
@@ -169,7 +190,7 @@ def _run_child(master, child_id, management_socket):
 
     server = ChildForkServer(child_id, master.sockets, management_socket, master.app, master.listen)
     # override naumanni_app.webserver
-    master.app.webserver = server
+    server.app.webserver = server
     server.start()
 
     # check asyncio env
