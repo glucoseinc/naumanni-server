@@ -2,17 +2,12 @@
 
 """CLI Main."""
 
-from itertools import groupby
 import logging
-import os
-import re
 import sys
 
 # community module
 import click
-from click.core import Context
 
-import naumanni
 from naumanni.core import NaumanniApp
 from ..logging_utils import LOG_COLORED, set_nice_record_factory
 
@@ -53,6 +48,8 @@ def _init_logging(debug=False):
     root_logger.setLevel(logging.DEBUG)
 
     logging.getLogger('tornado.curl_httpclient').setLevel(logging.INFO)
+    logging.getLogger('naumanni_spamfilter').setLevel(logging.INFO)
+    logging.getLogger('naumanni_ogp').setLevel(logging.INFO)
 
 
 @cli_main.command('webserver')

@@ -2,7 +2,6 @@
 import asyncio
 import collections
 import functools
-import json
 import logging
 import multiprocessing
 import os
@@ -11,7 +10,7 @@ import socket
 import time
 import weakref
 
-from tornado import gen, ioloop, locks, netutil, web
+from tornado import gen, ioloop, netutil
 from tornado.platform.asyncio import AsyncIOLoop, AsyncIOMainLoop, BaseAsyncIOLoop
 import tornado.process
 
@@ -152,7 +151,7 @@ class ForkWebServer(object):
             )
             return {}
         else:
-            logger.error('Bad request %s:%r', requset, options)
+            logger.error('Bad request %s:%r', request, options)
 
 
 def _run_child(master, child_id, management_socket):
@@ -215,7 +214,7 @@ class ChildForkServer(WebServerBase):
         if request == MANAGEMENT_REQUEST_GET_CHILD_STATUS:
             return collect_process_status()
         else:
-            logger.error('Bad request %s:%r', requset, options)
+            logger.error('Bad request %s:%r', request, options)
 
     async def collect_server_status(self):
         """親プロセスに、全体のstatusを要求する"""

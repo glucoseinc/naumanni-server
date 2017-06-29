@@ -7,7 +7,7 @@ import os
 
 import aioredis
 import pkg_resources
-from tornado import concurrent, gen, httpclient
+from tornado import httpclient
 
 import naumanni
 from ..plugin import Plugin

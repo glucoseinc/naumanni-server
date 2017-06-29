@@ -8,7 +8,7 @@ import weakref
 
 from tornado import gen, httpclient
 from tornado.websocket import (
-    websocket_connect, WebSocketClientConnection, WebSocketClosedError, WebSocketError, WebSocketHandler
+    websocket_connect, WebSocketClosedError, WebSocketHandler
 )
 
 from .base import NaumanniRequestHandlerMixIn

@@ -1,6 +1,4 @@
 # -*- coding:utf-8 -*-
-import functools
-
 from tornado import web
 
 from ..base import NaumanniRequestHandlerMixIn

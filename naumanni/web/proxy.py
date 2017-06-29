@@ -4,7 +4,7 @@ import logging
 import re
 from urllib.parse import quote, urlsplit, urlunsplit
 
-from tornado import gen, httpclient, queues, web
+from tornado import httpclient, queues
 from tornado.curl_httpclient import CurlAsyncHTTPClient
 from tornado.simple_httpclient import SimpleAsyncHTTPClient
 import tornado.web
@@ -155,7 +155,7 @@ class APIProxyHandler(tornado.web.RequestHandler, NaumanniRequestHandlerMixIn):
 
         # API responseじゃなかったらlogして返す
         if not (self.request_api and content_type == 'application/json'):
-            logger.warning('unknown request: %s %s', api, content_type)
+            logger.warning('unknown request: %s %s', self.request_api, content_type)
             return response.body
 
         try:

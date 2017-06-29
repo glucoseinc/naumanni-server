@@ -3,7 +3,7 @@ import json
 import logging
 import time
 
-from tornado import gen, ioloop, locks, netutil, web
+from tornado import ioloop, locks
 
 MAX_MESSAGE_SIZE = 5120
 NOT_FOUND = object()

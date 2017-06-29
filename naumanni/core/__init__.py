@@ -3,3 +3,6 @@
 """Naumanni Core."""
 
 from .app import NaumanniApp
+
+
+__all__ = ('NaumanniApp',)

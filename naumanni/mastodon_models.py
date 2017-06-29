@@ -2,7 +2,7 @@
 import re
 
 from ttp import ttp
-from werkzeug import cached_property, unescape
+from werkzeug import cached_property
 
 tag_rex = re.compile('<(/?.*?)(\s+[^>]*)?/?>')
 
