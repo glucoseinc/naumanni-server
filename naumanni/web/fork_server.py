@@ -63,6 +63,15 @@ class ForkWebServer(object):
         for child_id, child in self.children.items():
             child.proc.join()
 
+    def stop(self):
+        # 子サーバーを全部止める
+        logger.debug('stop master webserver')
+        for child in self.children.values():
+            try:
+                os.kill(child.proc.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+
     def fork(self, num_processes):
         if num_processes == 0:
             num_processes = multiprocessing.cpu_count()
@@ -74,21 +83,12 @@ class ForkWebServer(object):
 
             c, s = socket.socketpair(socket.AF_UNIX, socket.SOCK_STREAM)
 
-            proc = multiprocessing.Process(target=self._run_child, args=(child_id, c))
+            proc = multiprocessing.Process(target=_run_child, args=(self, child_id, c))
             s = ManamgenetSocket(s, self.handle_management_request)
             children[child_id] = ChildServer(proc, s)
             proc.start()
 
         return children
-
-    def _run_child(self, child_id, management_socket):
-        logger.info('forked child web server started')
-        self.is_master = False
-
-        server = ChildForkServer(child_id, self.sockets, management_socket, self.app, self.listen)
-        # override naumanni_app.webserver
-        self.app.webserver = server
-        server.start()
 
     async def collect_server_status(self):
         async def _pair(cid, future):
@@ -119,6 +119,16 @@ class ForkWebServer(object):
             return await self.collect_server_status()
         else:
             logger.error('Bad request %s:%r', requset, options)
+
+
+def _run_child(master, child_id, management_socket):
+    logger.info('forked child web server started')
+    master.is_master = False
+
+    server = ChildForkServer(child_id, master.sockets, management_socket, master.app, master.listen)
+    # override naumanni_app.webserver
+    master.app.webserver = server
+    server.start()
 
 
 class ChildForkServer(WebServerBase):
@@ -162,13 +172,13 @@ def install_master_signal_handlers(webserver):
     # SIGTERMされてもちゃんと終了するように
     def stop_handler(webserver, sig, frame):
         io_loop = ioloop.IOLoop.current()
+
+        async def stopper():
+            await webserver.app.stop()
+            io_loop.stop()
+
         try:
-            for child in webserver.children.values():
-                try:
-                    os.kill(child.proc.pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-            io_loop.add_callback_from_signal(io_loop.stop)
+            io_loop.add_callback_from_signal(stopper)
         except Exception as exc:
             logger.exception(exc)
 
@@ -187,15 +197,14 @@ def install_child_signal_handlers(webserver):
             now = time.time()
             if now < deadline and has_ioloop_tasks(io_loop):
                 logger.info('Waiting for next tick...')
-                debug_list_ioloop_tasks(io_loop)
                 io_loop.add_timeout(now + 1, stop_loop, deadline)
             else:
                 io_loop.stop()
                 logger.info('Shutdown finally')
 
-        def shutdown():
-            logger.info('Stopping http server')
-            webserver.app.stop()
+        async def shutdown():
+            logger.info('Stopping child http server')
+            await webserver.app.stop()
             logger.info('Will shutdown in %s seconds ...', MAX_WAIT_SECONDS_BEFORE_SHUTDOWN)
             stop_loop(time.time() + MAX_WAIT_SECONDS_BEFORE_SHUTDOWN)
 

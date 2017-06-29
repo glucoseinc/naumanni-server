@@ -60,12 +60,15 @@ class NaumanniApp(object):
             (host, port), db=db, loop=asyncio.get_event_loop()
         )
 
-    def stop(self):
+    async def stop(self):
         """appを終了させる"""
         self.emit('before-stop-server')
 
         # http_serverを止める
         self.webserver.stop()
+        # redisを止める
+        self._async_redis_pool.close()
+        await self._async_redis_pool.wait_closed()
 
     def emit(self, event, **kwargs):
         rv = {}
