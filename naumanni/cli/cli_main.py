@@ -14,6 +14,7 @@ from click.core import Context
 
 import naumanni
 from naumanni.core import NaumanniApp
+from ..logging_utils import LOG_COLORED, set_nice_record_factory
 
 
 # project module
@@ -36,26 +37,20 @@ def cli_main(ctx, debug):
 
 def _init_logging(debug=False):
     # if we are attached to tty, use colorful.
+    set_nice_record_factory()
+
     fh = logging.StreamHandler(sys.stderr)
-    set_default_formatter = True
-    if sys.stderr.isatty():
-        try:
-            from ..logger import NiceColoredFormatter
-            # 色指示子で9charsとる
-            fh.setFormatter(NiceColoredFormatter(
-                '%(nice_levelname)-14s %(nice_name)-33s: %(message)s',
-            ))
-            set_default_formatter = False
-        except ImportError:
-            pass
-    if set_default_formatter:
-        fh.setFormatter(logging.Formatter(
-            '%(levelname)-5s %(name)-24s: %(message)s',
-        ))
+    fmt = '[%(levelname4)s] %(name)-28s time:%(asctime)s pid:%(pid)-5d  %(message)s'
+    if sys.stderr.isatty() and LOG_COLORED:
+        # ttyだったら色をつけちゃえ
+        # 色指示子で9charsとる
+        fmt = '[%(nice_levelname4)-13s] %(nice_name)-40s time:%(asctime)s pid:%(pid)-5d  %(message)s'
+    fh.setFormatter(logging.Formatter(fmt))
 
     root_logger = logging.getLogger()
     root_logger.addHandler(fh)
-    root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
+    # root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
 
     logging.getLogger('tornado.curl_httpclient').setLevel(logging.INFO)
 
