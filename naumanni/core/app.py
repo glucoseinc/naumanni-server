@@ -38,6 +38,10 @@ class NaumanniApp(object):
         self.root_path = os.path.abspath(os.path.join(naumanni.__file__, os.path.pardir, os.path.pardir))
         self.plugins = self.load_plugins()
         self.webserver = None  # webserver初期化時に代入される
+        self._is_closed = False
+
+    def is_closed(self):
+        return self._is_closed
 
     def load_plugins(self):
         assert not hasattr(self, 'plugins')
@@ -62,6 +66,7 @@ class NaumanniApp(object):
 
     async def stop(self):
         """appを終了させる"""
+        self._is_closed = True
         self.emit('before-stop-server')
 
         # http_serverを止める

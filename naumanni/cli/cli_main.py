@@ -76,3 +76,7 @@ def cli_main_run_webserver(ctx):
 
     app.webserver = webserver_class(app, app.config.listen)
     app.webserver.start()
+    app.webserver.run()
+
+    logger.debug('exit')
+

@@ -4,6 +4,7 @@ import logging
 import re
 import time
 from urllib.parse import urlparse
+import weakref
 
 from tornado import gen, httpclient
 from tornado.websocket import (
@@ -18,7 +19,19 @@ logger = logging.getLogger(__name__)
 https_prefix_rex = re.compile('^wss?://?')
 
 
-class WebsocketProxyHandler(WebSocketHandler, NaumanniRequestHandlerMixIn):
+class ListHandlersMixin(object):
+    __handlers = weakref.WeakSet()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.__handlers.add(self)
+
+    @classmethod
+    def list_handlers(kls):
+        return list(kls.__handlers)
+
+
+class WebsocketProxyHandler(WebSocketHandler, NaumanniRequestHandlerMixIn, ListHandlersMixin):
     """proxyる
 
     :param UUID slave_uuid:

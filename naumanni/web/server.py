@@ -4,7 +4,6 @@ import collections
 import functools
 import json
 import logging
-import multiprocessing
 import os
 import signal
 import socket
@@ -21,7 +20,7 @@ from tornado.wsgi import WSGIContainer
 
 from .base import NaumanniRequestHandlerMixIn
 from .proxy import APIProxyHandler
-from .views.status import PingAPIHandler, StatusAPIHandler
+from .views.status import DebugSuspendHandler, PingAPIHandler, StatusAPIHandler
 from .websocket import WebsocketProxyHandler
 
 
@@ -58,7 +57,7 @@ class WebServerBase(object):
     def __init__(self, naumanni_app, listen):
         self.naumanni_app = weakref.ref(naumanni_app)
         self.listen = listen
-
+        self.child_id = None
         self.init()
 
     @property
@@ -71,6 +70,8 @@ class WebServerBase(object):
             (r'/ws/(?P<request_url>.+)', WebsocketProxyHandler),
             (r'/status', StatusAPIHandler),
             (r'/ping', PingAPIHandler),
+
+            (r'/debug/suspend/(?P<child_id>\d+)', DebugSuspendHandler),
         ]
         self.application = NaumanniWebApplication(
             handlers,
@@ -85,22 +86,34 @@ class WebServerBase(object):
     def start(self):
         pass
 
-    def stop(self):
-        """webserverを止める"""
-        self.http_server.stop()
+    def run(self):
+        if not AsyncIOMainLoop().initialized():
+            AsyncIOMainLoop().install()
 
-    def _run_server(self, child_id):
-        assert AsyncIOMainLoop().initialized()
+        logger.debug('run')
 
-        # run self.naumanni_app.setup(child_id) synchronusly
         io_loop = ioloop.IOLoop.current()
-        io_loop.run_sync(functools.partial(self.app.setup, child_id))
+        io_loop.run_sync(functools.partial(self.app.setup, self.child_id))
 
         self.http_server = HTTPServer(self.application)
         self.http_server.add_sockets(self.sockets)
 
-        # run ioloop
-        ioloop.IOLoop.current().start()
+        try:
+            io_loop.start()
+        finally:
+            logger.debug('runloop exited')
+
+            # finalize asyncio
+            import asyncio
+
+            asyncio_loop = asyncio.get_event_loop()
+            assert not asyncio_loop.is_running()
+            asyncio_loop.run_until_complete(asyncio_loop.shutdown_asyncgens())
+            asyncio_loop.close()
+
+    def stop(self):
+        """webserverを止める"""
+        self.http_server.stop()
 
     async def collect_server_status(self):
         raise NotImplementedError()
@@ -113,8 +126,6 @@ class DebugWebServer(WebServerBase):
         AsyncIOMainLoop().install()
         from tornado import autoreload
         autoreload.start()
-
-        self._run_server(None)
 
     async def collect_server_status(self):
         return collect_process_status()

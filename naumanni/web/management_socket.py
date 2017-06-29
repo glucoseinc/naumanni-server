@@ -1,7 +1,14 @@
 # -*- coding: utf-8 -*-
 import json
+import logging
+import time
 
 from tornado import gen, ioloop, locks, netutil, web
+
+MAX_MESSAGE_SIZE = 5120
+NOT_FOUND = object()
+
+logger = logging.getLogger(__name__)
 
 
 class ManamgenetSocket(object):
