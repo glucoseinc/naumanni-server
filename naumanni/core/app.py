@@ -39,6 +39,7 @@ class NaumanniApp(object):
         self.plugins = self.load_plugins()
         self.webserver = None  # webserver初期化時に代入される
         self._is_closed = False
+        self._async_redis_pool = None
 
     def is_closed(self):
         return self._is_closed
@@ -72,8 +73,9 @@ class NaumanniApp(object):
         # http_serverを止める
         self.webserver.stop()
         # redisを止める
-        self._async_redis_pool.close()
-        await self._async_redis_pool.wait_closed()
+        if self._async_redis_pool:
+            self._async_redis_pool.close()
+            await self._async_redis_pool.wait_closed()
 
     def emit(self, event, **kwargs):
         rv = {}

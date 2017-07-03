@@ -18,6 +18,7 @@ from .management_socket import ManamgenetSocket
 from .server import collect_process_status, WebServerBase
 
 
+FORK_MASTER_ID = -1
 logger = logging.getLogger(__name__)
 MAX_WAIT_SECONDS_BEFORE_SHUTDOWN = 5
 ChildServer = collections.namedtuple('ChildServer', ['proc', 'management_socket'])
@@ -50,6 +51,10 @@ class ForkWebServer(object):
 
         # use asyncio for ioloop
         AsyncIOMainLoop().install()
+        io_loop = ioloop.IOLoop.current()
+
+        # setup!
+        io_loop.run_sync(functools.partial(self.app.setup, FORK_MASTER_ID))
 
         # 30分毎に子プロセスの状況を監視して、メモリ食いを殺す
         self.report_task = ioloop.PeriodicCallback(
