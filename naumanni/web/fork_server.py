@@ -170,14 +170,19 @@ class ForkWebServer(object):
         max_uss = getattr(self.app.config, 'harakiri_uss_size', 512)
         logger.debug('sweep_fat_child')
 
+        fat_child_id, fat_child = None, None
+
         server_status = await self.collect_server_status()
         for child_id, info in server_status['process'].items():
             logger.debug('harakiri check %d -> %f', child_id, info['process.uss'])
 
             if info['process.uss'] > max_uss:
-                child = self.children[child_id]
-                logger.info('harakiri child proc(%d, pid=%d). USS=%f', child_id, child.proc.pid, info['process.uss'])
-                break
+                fat_child_id, fat_child, max_uss = child_id, self.children[child_id], info['process.uss']
+
+        if child_id:
+            logger.info('harakiri child proc(%d, pid=%d). USS=%f', fat_child_id, fat_child.proc.pid, max_uss)
+            os.kill(fat_child.proc.pid, signal.SIGTERM)
+            self.spawn_child(fat_child_id)
 
 
 def _run_child(master, child_id, management_socket):
