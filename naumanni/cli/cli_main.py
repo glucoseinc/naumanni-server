@@ -44,12 +44,13 @@ def _init_logging(debug=False):
 
     root_logger = logging.getLogger()
     root_logger.addHandler(fh)
-    # root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
-    root_logger.setLevel(logging.DEBUG)
+    root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
-    logging.getLogger('tornado.curl_httpclient').setLevel(logging.INFO)
-    logging.getLogger('naumanni_spamfilter').setLevel(logging.INFO)
-    logging.getLogger('naumanni_ogp').setLevel(logging.INFO)
+    logging.getLogger('naumanni').setLevel(logging.DEBUG)
+    # logging.getLogger('tornado.curl_httpclient').setLevel(logging.INFO)
+    # logging.getLogger('naumanni_spamfilter').setLevel(logging.INFO)
+    # logging.getLogger('naumanni_ogp').setLevel(logging.INFO)
+    # logging.getLogger('chardet.charsetprober').setLevel(logging.INFO)
 
 
 @cli_main.command('webserver')

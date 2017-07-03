@@ -32,7 +32,7 @@ class ManamgenetSocket(object):
         io_loop.remove_handler(self._sock)
 
     def handle_socket_event(self, fd, events):
-        logger.debug('handle_socket_event %r', events & ioloop.IOLoop.READ)
+        # logger.debug('handle_socket_event %r', events & ioloop.IOLoop.READ)
         assert fd == self._sock
 
         if events & ioloop.IOLoop.READ:
@@ -84,7 +84,7 @@ class ManamgenetSocket(object):
 
     async def pop_response(self, token):
         while True:
-            logger.debug('pop_response: %s in %r', token, list(self._responses.keys()))
+            # logger.debug('pop_response: %s in %r', token, list(self._responses.keys()))
             rv = self._responses.pop(token, NOT_FOUND)
             if rv is not NOT_FOUND:
                 return rv
